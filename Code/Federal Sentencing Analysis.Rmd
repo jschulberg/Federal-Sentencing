@@ -1,0 +1,177 @@
+---
+title: "Polling Places Analysis"
+author: "Justin S."
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+code_folding: TRUE
+---
+
+In this analysis, I will look at Federal Sentencing data from the [United States Sentencing Commission (USSC)](https://www.ussc.gov/). I will use a variety of exploratory and modeling techniques to do answer the following questions:
+
+
+# Let's Talk About the Data
+The data provided by USSC has proved challenging in a rather unique way. The datasets are saved as zip files, one for each fiscal year, containing .SAS and .SPSS files. Unfortunately, those files are fixed delimited, but not totally consistently, making it hard to actually put the data into a standard, tabular format, despite the fact that that was what was intended by the USSC research team compiling the data. 
+
+With that, huge kudos is in order to Kevin Wilson for writing [significant code](https://github.com/khwilson/SentencingCommissionDatasets) to convert each zip file into a CSV. Even after the couple hours spent running his code, I was able to produce one CSV for each fiscal years' data. Unfortunately, each of the 11 CSVs was about 1GB...which is what you get when you have 100,000 rows and 400 variables in each file, so I had to compress the files to better work with them. Even then, having 1mil+ rows and 400 columns wasn't too feasible, so I spent significant time going through [USSC's Codebook](https://www.ussc.gov/sites/default/files/pdf/research-and-publications/datafiles/USSC_Public_Release_Codebook_FY99_FY20.pdf) to better understand which variables they provide. With that, my analysis will be tailored to answer the following questions:
+
+```{r fig.align='center', fig.height=6, fig.width=6, message=FALSE, warning=FALSE, include=FALSE}
+# Set our plot specifications for the rest of the document.
+knitr::opts_chunk$set(fig.width = 9,
+                      fig.height = 6,
+                      fig.align = "center",
+                      # Set our code specifications for the rest of the document
+                      echo = F,
+                      warning = F,
+                      message = F)
+```
+
+Let's take a look at the data. Here's a small sample of it:
+
+```{r set-up_and_clean_data, include=FALSE}
+###########################################################################
+## Set Up -----------------------------------------------------------------
+###########################################################################
+# Bring in packages
+suppressMessages(library("pacman"))
+pacman::p_load("tidyverse", # Used for data wrangling,
+               "tidyr", # Used for data cleaning,
+               "ggplot2", # Used for visualizations,
+               "ggrepel", # Used for labeling points in a ggplot viz
+               "here", # Used for navigating project structure
+               "maps", # Used for map-based visualizations
+               "readxl", # Used for loading excel files,
+               "readr", # Used for working with files,
+               "pander", # Used for pretty tables,
+               "kableExtra", # Used for RMarkdown formatting
+               "lubridate", # Used for fixing dates,
+               "usmap", # Used for plotting US states
+               "praise", # Used for positive reinforcement,
+               "janitor", # Used for data cleaning,
+               "pdftools", # Used for reading PDF files in,
+               "gganimate", # Used for interactive graphic visualizations,
+               "gridExtra", # Used for putting multiple plots next to each other
+               "mapproj", # Used for visualizing maps
+               "transformr", # Used to animate maps
+               "gifski", # Used to create animated gifs
+               "forecast", # Used for time series analysis,
+               "tseries")  # Used for time series analysis
+
+# Get rid of scientific notation
+options(scipen = 999)
+
+# Try unzipping the files
+files <- unzip('Data/Processed/Archive.zip')
+
+### Bring in the data, taking advantage of the project structure
+# Note: There are 11 CSVs, one for each year between 2010-2020,
+#       so we'll bring them all in programmatically into one df
+# Initialize an empty tibble to hold all of our data
+sentencing_data <- dplyr::tibble()
+
+for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
+  # Where we at
+  print(paste0("Reading in ", csv, "..."))
+  
+  # Read it in as a temporary tibble
+  temp_data <- read_csv(unzip('Data/Processed/Archive.zip', csv),
+    col_names = TRUE,
+    # Only pull in columns we care about to speed up the process
+    # Definitions and descriptions of all variables are available in the codebook here:
+    # https://www.ussc.gov/sites/default/files/pdf/research-and-publications/datafiles/USSC_Public_Release_Codebook_FY99_FY20.pdf
+    col_types = cols_only(
+      AGE = col_double(), # Actual Age
+      YEARS = col_double(), # Age Category buckets
+      ALTDUM = col_logical(), # Dummy indicator of alternative sentence
+      ALTMO = col_double(), # Total months of alternative incarceration
+      AMENDYR = col_character(), # The guideline manual used to calculate the guideline calculations
+      AMTFINEC = col_double(), # Total dollar amount of both fine and cost of supervision
+      AMTREST = col_double(), # Dollar amount of restitution
+      FINE = col_double(), # Dollar amount of fine ordered (including cost of supervision)
+      FINEWAIV = col_logical(), # Indicates if fine was waived because of defendant's inability to pay
+      AMTTOTAL = col_double(), # Sum of the imposed dollar amounts of fine, cost of supervision, and restitution
+      ARMCRIM = col_factor(), # # of lvls to be subtracted due to defendant's acceptance of responsibility
+      CAROFFAP = col_logical(), # Indicator to whether career offender status was applied
+      CAROFFEN = col_factor(), # # of lvls to subtract from the Career Offender Offense Level due to defendant's Acceptance of Responsibility
+      CARROFFLV = col_double(), # Offense level due to the application of career offender status
+      CASETYPE = col_factor(), # 1 = Felony; 2 = Misdemenaor A; 3 = Misdemeanor B/C (2018-present)
+      CIRCDIST = col_double(), # Districts in the order in which they appear in Sourcebook
+      CITIZEN = col_factor(), # 1 = US Citizen; 2 = Resident; 3 = Undocumented Immigrant; 4 = Unknown; 5 = Extradited Alien
+      NEWCIT = col_logical(), # 0 = U.S. Citizen; 1 = Non-U.S. Citizen
+      CITWHERE = col_character(), # Defendant's country of citizenship
+      COMDUM = col_logical(), # Indicator whether defendant received community confinement
+      MOCOMCON = col_double(), # Total months of community confinement
+      COSTSUP = col_double(), # Cost of supervision, only if ordered separately from fine
+      CRIMHIST = col_logical(), # Whether defendant has ANY criminal history or LE contacts
+      CRIMLIV = col_double(),
+      CRIMPTS = col_double(),
+      CRMLIVAP = col_factor(),
+      CRPTS = col_logical(),
+      DAYSDUM = col_logical(), # Indicator whether offender received a sentence of any days imposed in prison
+      DEFCONSL = col_factor(), # Type of defense counsel used in the instant offense
+      DISPOSIT = col_factor(), # Disposition of the defendant's case
+      DOB = col_date(), # Date of Birth
+      DOBMON = col_factor(), # Month of Birth
+      DOBYR = col_double(), # Year of Birth
+      DRUGMIN = col_double(), # Mandatory min sentence (in months) associated with drug statutes
+      'DRUGTYP1' = col_character(), # Drug types involved in a case
+      'DRUGTYPX' = col_character(), # Drug types involved in a case
+      DTGDL = col_logical(), # Identifies cases with one of the "Big 7" drug guidelines as the primary guideline
+      ECONDUM = col_logical(), # Indicator of whether a fine/cost of supervision or restitution amount was given
+      EDUCATN = col_factor(), # Highest lvl of education completed by defendant
+      HISPORIG = col_factor(), # 0 = No Info available; 1 = Non-Hispanic; 2 = Hispanic
+      HOMDUM = col_logical(), # Indicates whether defendant received home detention
+      MOHOMDET = col_double(), # Total months of home detention ordered
+      HRCOMSRV = col_double(), # Total # of comm service hours ordered
+      INOUT = col_logical(), # 0 = Received Prison Sentence; 1 = Received Non-Prison Sentence
+      INTDUM = col_logical(), # Indicates whether a defendant received intermittent confinement
+      MOINTCON = col_double(), # Total months of intermittent confinement ordered
+      'LOSS1' = col_double(), # Dollar amount of loss for which the offender is responsible
+      'LOSSX' = col_double(), # Same as above
+      'LOSSHI' = col_double(), # Same as above
+      MAND1 = col_factor(), # Status of any mandatory minimums at sentencing
+      MANDX = col_factor(), # Status of any mandatory minimums at sentencing
+      MARRIED = col_factor(), # Marital status
+      MNTHDEPT = col_double(), # Diff in months between guideline minimum (GLMIN) and sentence length (SENSPCAP)
+      MONCIRC = col_factor(), # Judicial circuit in which the defendant was sentenced
+      MONRACE = col_factor(), # Offender's race
+      MONSEX = col_logical() # FALSE/0 = Male; TRUE/1 = Female
+    ),
+    # n_max = 10000,
+    progress = show_progress()
+    ) %>% 
+    janitor::remove_empty(which = c("rows", "cols")) %>% 
+    as_tibble()
+  
+  sentencing_data <- bind_rows(temp_data, sentencing_data)
+}
+
+```
+
+
+Let's start by taking a look at the data.
+
+```{r display_data}
+########################################################################
+### View Data --------------------------------------------------------
+########################################################################
+# Let's view the data output
+# In any kable outputs, display NAs as blanks
+opts <- options(knitr.kable.NA = "")
+
+sentencing_data %>% 
+  head(25) %>%
+  # Fix up the headers by replacing the underscores with spaces
+  rename_all(funs(str_replace_all(., "_", " "))) %>% 
+  # Make everything proper capitalization
+  # rename_all(funs(str_to_title)) %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = F,
+                font_size = 10) %>%
+  # Make the header row bold and black so it's easier to read
+  row_spec(0, bold = T, color = "black") %>% 
+  scroll_box(height = "400px", width = "100%")
+```
