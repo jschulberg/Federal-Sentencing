@@ -128,7 +128,7 @@ for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
       SENTDATE = col_date(), # Date of sentencing
       SENTIMP = col_factor(), # Type of sentence given
       SENTMON = col_character(), # Month of sentencing
-      SENTYR = col_integer(), # Year of sentencing
+      SENTYR = col_integer() # Year of sentencing
     ),
     # n_max = 100, # Uncomment this line to make the code run much much faster, but only if you want to see a sample of the data
     progress = show_progress()
@@ -147,3 +147,83 @@ end_time <- Sys.time()
 end_time - start_time
 
 readr::write_csv(sentencing_data, "Data/sentencing_data.csv")
+
+
+
+### Alternate Method of Reading in Data (Backward Selection)
+# Another way to read in the data is to read in one dataset at a 
+# time, but include all columns available in said dataset. Afterwards,
+# we standardize the column names (which might not necessarily be all
+# caps in every dataset) and remove any columns which are >75% null
+
+# Create a function to figure out which columns are even mostly filled
+# to begin with
+filter_null_columns <- function(df, perc_null = .75) {
+  
+  # Figure out how many nulls we have in each column
+  print('Calculating number of nulls in each column...')
+  num_nulls <- df %>% 
+    head(100) %>% 
+    summarise_all(list(~sum(is.na(.))/length(.)))
+  
+  # Create a new tibble with two columns:
+  #   1. The name of a variable (upper case)
+  #   2. The % of values that are null in the given column
+  num_nulls_pivoted <- tibble(
+    # Upper case variable names
+    variable = names(num_nulls) %>% stringr::str_to_upper(),
+    percent_null = num_nulls[1, ] %>% t()
+  )
+  
+  print(paste0("Retaining ", 
+               sum(num_nulls_pivoted$percent_null < perc_null), 
+               " columns | Removing ", 
+               sum(num_nulls_pivoted$percent_null > perc_null),
+               " mostly null columns.")
+        )
+        
+  # Now filter out any variables that are more than 75% null
+  print(paste0("Removing columns that are more than ", 
+               perc_null, 
+               "% null..."))
+  num_nulls_reduced <- num_nulls_pivoted %>% 
+    filter(percent_null < perc_null)
+  
+  # Now filter the original tibble to match the columns available
+  # in the num_nulls_reduced tibble
+  df_filtered <- df %>% 
+    select(., which(stringr::str_to_upper(names(df)) %in% num_nulls_reduced$variable))
+    
+  # Return the final tibble
+  return(df_filtered)
+}
+
+# Now let's loop through all of the CSVs in the zip folder, filter out
+# columns that are mostly null, and concatenate it to a master tibble
+start_time <- Sys.time()
+
+# Initialize an empty tibble to hold all of our data
+sentencing_data <- dplyr::tibble()
+
+for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
+  # Where we at
+  print(paste0("Reading in ", csv, "..."))
+  
+  # Read it in as a temporary tibble
+  temp_df <- read_csv(unzip('Data/Processed/Archive.zip', csv),
+                      col_names = TRUE,
+                      n_max = 100, # Uncomment this line to make the code run much much faster, but only if you want to see a sample of the data
+                      progress = show_progress())
+  
+  # Remove columns that are mostly null in this
+  temp_filtered <- filter_null_columns(temp_df, perc_null = .75)
+  
+  # Concatenate the new dataset to our master
+  sentencing_data <- bind_rows(temp_filtered, sentencing_data)
+  
+  # Unzipping the file created a large CSV version of it. Let's delete this
+  unlink(csv)
+}
+
+end_time <- Sys.time()
+end_time - start_time
