@@ -9,7 +9,6 @@ The repository is organized as follows:
 
 | Folder | Description |
 | --- | --- |
-| Code | This section includes all of the R code used for analysis. |
 | Code | This section includes all of the code (both R and Python) used for analysis. |
 | Data | This section includes the main datasets used throughout the analyses. |
 
