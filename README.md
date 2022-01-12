@@ -4,6 +4,8 @@ This repository includes a thorough analysis of Federal Sentencing Guidelines. I
 - What are the demographics of individuals sentenced for various crimes (age, race, gender, location, citizenship, level of education, etc.); 
 - What are the types of sentences handed down (probation vs. prison time vs. fine, etc.); 
 - How are the sentences handed down relate to the minimum and maximum sentences according to the guidelines (i.e. are sentences closer to the minimum guideline for white defendants and closer to the maximum guideline for defendants of color?) 
+- How do sentencing practices change after the Booker decision?
+- Do prosecutors bring more charges after changes in the mandatory minimums?
 
 The repository is organized as follows:  
 
