@@ -6,6 +6,7 @@ This repository includes a thorough analysis of Federal Sentencing Guidelines. I
 - How are the sentences handed down relate to the minimum and maximum sentences according to the guidelines (i.e. are sentences closer to the minimum guideline for white defendants and closer to the maximum guideline for defendants of color?) 
 - How do sentencing practices change after the Booker decision?
 - Do prosecutors bring more charges after changes in the mandatory minimums?
+- Can we use machine learning to classify edge cases for different **Zones** and look at those edge cases to see which variables are most influential in pushing someone into one zone vs. another?
 
 The repository is organized as follows:  
 
