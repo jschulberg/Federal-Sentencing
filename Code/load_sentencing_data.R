@@ -13,12 +13,11 @@ suppressMessages(library("praise")) # Used for positive reinforcement
 suppressMessages(library("stringr")) # Used for positive reinforcement
 suppressMessages(library('vroom')) # for fast reading of large dataframes
 source('Code/utils.R')
-memory.limit(25000)
 
 start_time <- Sys.time()
 
 # Expand Vroom connection size to accomodate bigger datasets
-Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 5)
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 10)
 
 # list all csv's in data/procssed (unzipped Archive.zip first)
 f <- fs::dir_ls(path = 'Data/Processed/', glob = "*csv")
