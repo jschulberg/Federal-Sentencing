@@ -1,12 +1,18 @@
 ---
-title: "Polling Places Analysis"
+title: "Federal Sentencing Analysis"
 author: "Justin S."
 date: "`r Sys.Date()`"
 output:
-  prettydoc::html_pretty:
-    theme: architect
-    highlight: github
-code_folding: TRUE
+  rmdformats::readthedown:
+    self_contained: TRUE
+    toc_depth: 4
+    highlight: tango
+    code_folding: hide
+    lightbox: TRUE
+    gallery: TRUE
+    toc_float: # a float toc will stick to the sidebar when scrolling
+      collapsed: false
+
 ---
 
 In this analysis, I will look at Federal Sentencing data from the [United States Sentencing Commission (USSC)](https://www.ussc.gov/). I will use a variety of exploratory and modeling techniques to do answer the following questions:
@@ -38,6 +44,7 @@ Let's take a look at the data. Here's a small sample of it:
 suppressMessages(library("pacman"))
 pacman::p_load("tidyverse", # Used for data wrangling,
                "tidyr", # Used for data cleaning,
+               DataExplorer, # Exploratory data analysis
                "ggplot2", # Used for visualizations,
                "ggrepel", # Used for labeling points in a ggplot viz
                "here", # Used for navigating project structure
@@ -63,90 +70,90 @@ pacman::p_load("tidyverse", # Used for data wrangling,
 options(scipen = 999)
 
 # Try unzipping the files
-files <- unzip('Data/Processed/Archive.zip')
-
-### Bring in the data, taking advantage of the project structure
-# Note: There are 11 CSVs, one for each year between 2010-2020,
-#       so we'll bring them all in programmatically into one df
-# Initialize an empty tibble to hold all of our data
-sentencing_data <- dplyr::tibble()
-
-for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
-  # Where we at
-  print(paste0("Reading in ", csv, "..."))
-  
-  # Read it in as a temporary tibble
-  temp_data <- read_csv(unzip('Data/Processed/Archive.zip', csv),
-    col_names = TRUE,
-    # Only pull in columns we care about to speed up the process
-    # Definitions and descriptions of all variables are available in the codebook here:
-    # https://www.ussc.gov/sites/default/files/pdf/research-and-publications/datafiles/USSC_Public_Release_Codebook_FY99_FY20.pdf
-    col_types = cols_only(
-      AGE = col_double(), # Actual Age
-      YEARS = col_double(), # Age Category buckets
-      ALTDUM = col_logical(), # Dummy indicator of alternative sentence
-      ALTMO = col_double(), # Total months of alternative incarceration
-      AMENDYR = col_character(), # The guideline manual used to calculate the guideline calculations
-      AMTFINEC = col_double(), # Total dollar amount of both fine and cost of supervision
-      AMTREST = col_double(), # Dollar amount of restitution
-      FINE = col_double(), # Dollar amount of fine ordered (including cost of supervision)
-      FINEWAIV = col_logical(), # Indicates if fine was waived because of defendant's inability to pay
-      AMTTOTAL = col_double(), # Sum of the imposed dollar amounts of fine, cost of supervision, and restitution
-      ARMCRIM = col_factor(), # # of lvls to be subtracted due to defendant's acceptance of responsibility
-      CAROFFAP = col_logical(), # Indicator to whether career offender status was applied
-      CAROFFEN = col_factor(), # # of lvls to subtract from the Career Offender Offense Level due to defendant's Acceptance of Responsibility
-      CARROFFLV = col_double(), # Offense level due to the application of career offender status
-      CASETYPE = col_factor(), # 1 = Felony; 2 = Misdemenaor A; 3 = Misdemeanor B/C (2018-present)
-      CIRCDIST = col_double(), # Districts in the order in which they appear in Sourcebook
-      CITIZEN = col_factor(), # 1 = US Citizen; 2 = Resident; 3 = Undocumented Immigrant; 4 = Unknown; 5 = Extradited Alien
-      NEWCIT = col_logical(), # 0 = U.S. Citizen; 1 = Non-U.S. Citizen
-      CITWHERE = col_character(), # Defendant's country of citizenship
-      COMDUM = col_logical(), # Indicator whether defendant received community confinement
-      MOCOMCON = col_double(), # Total months of community confinement
-      COSTSUP = col_double(), # Cost of supervision, only if ordered separately from fine
-      CRIMHIST = col_logical(), # Whether defendant has ANY criminal history or LE contacts
-      CRIMLIV = col_double(),
-      CRIMPTS = col_double(),
-      CRMLIVAP = col_factor(),
-      CRPTS = col_logical(),
-      DAYSDUM = col_logical(), # Indicator whether offender received a sentence of any days imposed in prison
-      DEFCONSL = col_factor(), # Type of defense counsel used in the instant offense
-      DISPOSIT = col_factor(), # Disposition of the defendant's case
-      DOB = col_date(), # Date of Birth
-      DOBMON = col_factor(), # Month of Birth
-      DOBYR = col_double(), # Year of Birth
-      DRUGMIN = col_double(), # Mandatory min sentence (in months) associated with drug statutes
-      'DRUGTYP1' = col_character(), # Drug types involved in a case
-      'DRUGTYPX' = col_character(), # Drug types involved in a case
-      DTGDL = col_logical(), # Identifies cases with one of the "Big 7" drug guidelines as the primary guideline
-      ECONDUM = col_logical(), # Indicator of whether a fine/cost of supervision or restitution amount was given
-      EDUCATN = col_factor(), # Highest lvl of education completed by defendant
-      HISPORIG = col_factor(), # 0 = No Info available; 1 = Non-Hispanic; 2 = Hispanic
-      HOMDUM = col_logical(), # Indicates whether defendant received home detention
-      MOHOMDET = col_double(), # Total months of home detention ordered
-      HRCOMSRV = col_double(), # Total # of comm service hours ordered
-      INOUT = col_logical(), # 0 = Received Prison Sentence; 1 = Received Non-Prison Sentence
-      INTDUM = col_logical(), # Indicates whether a defendant received intermittent confinement
-      MOINTCON = col_double(), # Total months of intermittent confinement ordered
-      'LOSS1' = col_double(), # Dollar amount of loss for which the offender is responsible
-      'LOSSX' = col_double(), # Same as above
-      'LOSSHI' = col_double(), # Same as above
-      MAND1 = col_factor(), # Status of any mandatory minimums at sentencing
-      MANDX = col_factor(), # Status of any mandatory minimums at sentencing
-      MARRIED = col_factor(), # Marital status
-      MNTHDEPT = col_double(), # Diff in months between guideline minimum (GLMIN) and sentence length (SENSPCAP)
-      MONCIRC = col_factor(), # Judicial circuit in which the defendant was sentenced
-      MONRACE = col_factor(), # Offender's race
-      MONSEX = col_logical() # FALSE/0 = Male; TRUE/1 = Female
-    ),
-    # n_max = 10000,
-    progress = show_progress()
-    ) %>% 
-    janitor::remove_empty(which = c("rows", "cols")) %>% 
-    as_tibble()
-  
-  sentencing_data <- bind_rows(temp_data, sentencing_data)
-}
+# files <- unzip('Data/Processed/Archive.zip')
+# 
+# ### Bring in the data, taking advantage of the project structure
+# # Note: There are 11 CSVs, one for each year between 2010-2020,
+# #       so we'll bring them all in programmatically into one df
+# # Initialize an empty tibble to hold all of our data
+# sentencing_data <- dplyr::tibble()
+# 
+# for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
+#   # Where we at
+#   print(paste0("Reading in ", csv, "..."))
+#   
+#   # Read it in as a temporary tibble
+#   temp_data <- read_csv(unzip('Data/Processed/Archive.zip', csv),
+#     col_names = TRUE,
+#     # Only pull in columns we care about to speed up the process
+#     # Definitions and descriptions of all variables are available in the codebook here:
+#     # https://www.ussc.gov/sites/default/files/pdf/research-and-publications/datafiles/USSC_Public_Release_Codebook_FY99_FY20.pdf
+#     col_types = cols_only(
+#       AGE = col_double(), # Actual Age
+#       YEARS = col_double(), # Age Category buckets
+#       ALTDUM = col_logical(), # Dummy indicator of alternative sentence
+#       ALTMO = col_double(), # Total months of alternative incarceration
+#       AMENDYR = col_character(), # The guideline manual used to calculate the guideline calculations
+#       AMTFINEC = col_double(), # Total dollar amount of both fine and cost of supervision
+#       AMTREST = col_double(), # Dollar amount of restitution
+#       FINE = col_double(), # Dollar amount of fine ordered (including cost of supervision)
+#       FINEWAIV = col_logical(), # Indicates if fine was waived because of defendant's inability to pay
+#       AMTTOTAL = col_double(), # Sum of the imposed dollar amounts of fine, cost of supervision, and restitution
+#       ARMCRIM = col_factor(), # # of lvls to be subtracted due to defendant's acceptance of responsibility
+#       CAROFFAP = col_logical(), # Indicator to whether career offender status was applied
+#       CAROFFEN = col_factor(), # # of lvls to subtract from the Career Offender Offense Level due to defendant's Acceptance of Responsibility
+#       CARROFFLV = col_double(), # Offense level due to the application of career offender status
+#       CASETYPE = col_factor(), # 1 = Felony; 2 = Misdemenaor A; 3 = Misdemeanor B/C (2018-present)
+#       CIRCDIST = col_double(), # Districts in the order in which they appear in Sourcebook
+#       CITIZEN = col_factor(), # 1 = US Citizen; 2 = Resident; 3 = Undocumented Immigrant; 4 = Unknown; 5 = Extradited Alien
+#       NEWCIT = col_logical(), # 0 = U.S. Citizen; 1 = Non-U.S. Citizen
+#       CITWHERE = col_character(), # Defendant's country of citizenship
+#       COMDUM = col_logical(), # Indicator whether defendant received community confinement
+#       MOCOMCON = col_double(), # Total months of community confinement
+#       COSTSUP = col_double(), # Cost of supervision, only if ordered separately from fine
+#       CRIMHIST = col_logical(), # Whether defendant has ANY criminal history or LE contacts
+#       CRIMLIV = col_double(),
+#       CRIMPTS = col_double(),
+#       CRMLIVAP = col_factor(),
+#       CRPTS = col_logical(),
+#       DAYSDUM = col_logical(), # Indicator whether offender received a sentence of any days imposed in prison
+#       DEFCONSL = col_factor(), # Type of defense counsel used in the instant offense
+#       DISPOSIT = col_factor(), # Disposition of the defendant's case
+#       DOB = col_date(), # Date of Birth
+#       DOBMON = col_factor(), # Month of Birth
+#       DOBYR = col_double(), # Year of Birth
+#       DRUGMIN = col_double(), # Mandatory min sentence (in months) associated with drug statutes
+#       'DRUGTYP1' = col_character(), # Drug types involved in a case
+#       'DRUGTYPX' = col_character(), # Drug types involved in a case
+#       DTGDL = col_logical(), # Identifies cases with one of the "Big 7" drug guidelines as the primary guideline
+#       ECONDUM = col_logical(), # Indicator of whether a fine/cost of supervision or restitution amount was given
+#       EDUCATN = col_factor(), # Highest lvl of education completed by defendant
+#       HISPORIG = col_factor(), # 0 = No Info available; 1 = Non-Hispanic; 2 = Hispanic
+#       HOMDUM = col_logical(), # Indicates whether defendant received home detention
+#       MOHOMDET = col_double(), # Total months of home detention ordered
+#       HRCOMSRV = col_double(), # Total # of comm service hours ordered
+#       INOUT = col_logical(), # 0 = Received Prison Sentence; 1 = Received Non-Prison Sentence
+#       INTDUM = col_logical(), # Indicates whether a defendant received intermittent confinement
+#       MOINTCON = col_double(), # Total months of intermittent confinement ordered
+#       'LOSS1' = col_double(), # Dollar amount of loss for which the offender is responsible
+#       'LOSSX' = col_double(), # Same as above
+#       'LOSSHI' = col_double(), # Same as above
+#       MAND1 = col_factor(), # Status of any mandatory minimums at sentencing
+#       MANDX = col_factor(), # Status of any mandatory minimums at sentencing
+#       MARRIED = col_factor(), # Marital status
+#       MNTHDEPT = col_double(), # Diff in months between guideline minimum (GLMIN) and sentence length (SENSPCAP)
+#       MONCIRC = col_factor(), # Judicial circuit in which the defendant was sentenced
+#       MONRACE = col_factor(), # Offender's race
+#       MONSEX = col_logical() # FALSE/0 = Male; TRUE/1 = Female
+#     ),
+#     # n_max = 10000,
+#     progress = show_progress()
+#     ) %>% 
+#     janitor::remove_empty(which = c("rows", "cols")) %>% 
+#     as_tibble()
+#   
+#   sentencing_data <- bind_rows(temp_data, sentencing_data)
+# }
 
 ```
 
@@ -157,6 +164,14 @@ Let's start by taking a look at the data.
 ########################################################################
 ### View Data --------------------------------------------------------
 ########################################################################
+sentencing_data <- readRDS(here::here('Data/sentencing_df_vroom.RDS'))
+# Key for circuit district courts
+circdist <- read_excel(here::here('Data/key_circdist.xlsx'))
+# Key for circuit district courts
+citwhere <- read_excel(here::here('Data/key_citwhere.xlsx'))
+
+
+
 # Let's view the data output
 # In any kable outputs, display NAs as blanks
 opts <- options(knitr.kable.NA = "")
@@ -175,3 +190,190 @@ sentencing_data %>%
   row_spec(0, bold = T, color = "black") %>% 
   scroll_box(height = "400px", width = "100%")
 ```
+
+
+# Exploratory Data Analysis
+There are a few ways to explore the `r nrow(sentencing_data)` records corresponding to `r ncol(sentencing_data)` variables in our dataset:
+
+1. Demographics
+2. Information about the crime committed
+3. Information about the court where the individual was sentenced
+4. Information about the sentence received by the defendant
+
+## Demographics
+At least in terms of demographic information we have about the individuals who have been sentenced over the past decade, these variables stick out in particular:
+
+| Variable | Description                                                                                                                                                                                               |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AGE      | Identifies the age of the defendant at the time of sentencing. It is generated based on the date of birth provided either in the PSR or at case submission to USSC, and the sentencing date from the J&C. |
+| AGECAT   | Categories of age ranges (Recode of AGE for USSC Sourcebook Fiscal Year 2018 on). See YEARS for categories used in Sourcebook prior to Fiscal Year 2018.                                                  |
+| CIRCDIST | The district in which the defendant was sentenced. Use CIRCDIST for the districts in the same order in which they appear in the Sourcebook.                                                               |
+| CITIZEN  | Identifies the nature of defendant's citizenship with respect to the United States.                                                                                                                       |
+| CITWHERE | Identifies the defendant's country of citizenship.                                                                                                                                                        |
+| DOB      | Defendant's date of birth                                                                                                                                                                                 |
+| DOBMON   | The defendant's month of birth.                                                                                                                                                                           |
+| DOBYR    | The defendant's year of birth                                                                                                                                                                             |
+| EDUCATN  | Indicates the highest level of education completed by the defendant.                                                                                                                                      |
+| HISPORIG | Offender's ethnic origin                                                                                                                                                                                  |
+| MARRIED  | 37                                                                                                                                                                                                        |
+| MONRACE  | Offender's race (self-reported to the probation officer)                                                                                                                                                  |
+| MONSEX   | Indicates the offender's gender.                                                                                                                                                                          |
+| NEWCIT   | Citizenship of the defendant                                                                                                                                                                              |
+| NEWEDUC  | Highest level of education for offender (Recode of EDUCATN for the Sourcebook of Federal Sentencing Statistics publication).                                                                              |
+| NEWRACE  | Race of defendant (Recode of MONRACE and HISPORIG for the Sourcebook of Federal Sentencing Statistics publication)                                                                                        |
+| NUMDEPEN | Number of dependents whom the offender supports (excluding self).                                                                                                                                         |
+| POOFFICE | Indicates the code for the probation office where the PSR was prepared.                                                                                                                                   |
+
+```{r demographics_mutate}
+demographic_variables <- sentencing_data %>% 
+  select(
+        age,
+        # agecat,
+        circdist,
+        citizen,
+        citwhere,
+        district,
+        # dob,
+        dobmon,
+        dobyr,
+        educatn,
+        hisporig,
+        # married,
+        moncirc,
+        monrace,
+        monsex,
+        newcit,
+        neweduc,
+        newrace,
+        numdepen
+        # pooffice,
+        # years,
+  ) %>% 
+  mutate(circdist = as.character(circdist),
+         dobmon = as.character(dobmon),
+         citizen = case_when(
+           citizen == 1 ~ 'U.S. Citizen',
+           citizen == 2 ~ 'Resident/Legal Alien',
+           citizen == 3 ~ 'Illegal Alien',
+           citizen == 4 ~ 'Unknown',
+           citizen == 5 ~ 'Extradited Alien' 
+         ),
+         educatn = case_when(
+              educatn == 0 ~ 'No schooling',
+              educatn == 1 ~ '1 years of elementary or high school completed',
+              educatn == 2 ~ '2 years of elementary or high school completed',
+              educatn == 3 ~ '3 years of elementary or high school completed',
+              educatn == 4 ~ '4 years of elementary or high school completed',
+              educatn == 5 ~ '5 years of elementary or high school completed', 
+              educatn == 6 ~ '6 years of elementary or high school completed', 
+              educatn == 7 ~ '7 years of elementary or high school completed', 
+              educatn == 8 ~ '8 years of elementary or high school completed', 
+              educatn == 9 ~ '9 years of elementary or high school completed',
+              educatn == 10 ~ '10 years of elementary or high school completed',
+              educatn == 11 ~ '11 years of elementary or high school completed',
+              educatn == 12 ~ 'High school graduate',
+              educatn == 13 ~ 'One year of college/freshman',
+              educatn == 14 ~ 'Two years of college/sophomore',
+              educatn == 15 ~ 'Three years of college/junior',
+              educatn == 16 ~ 'College graduate',
+              educatn == 21 ~ 'G.E.D. (General Education Diploma)',
+              educatn == 22 ~ 'Trade or vocational degree',
+              educatn == 23 ~ 'Associates Degree (A.A.)',
+              educatn == 24 ~ 'Graduate Degree (Masters, J.D., M.D., Ph.D., etc.)',
+              educatn == 31 ~ 'Some elementary school',
+              educatn == 32 ~ 'Some high school',
+              educatn == 33 ~ 'Some trade or vocational school',
+              educatn == 34 ~ 'Some college',
+              educatn == 35 ~ 'Some graduate school',
+              educatn == 36 ~ 'Military training',
+              educatn == 37 ~ 'Middle school/Junior high'
+         ),
+         hisporig = case_when(
+           # hisporig == 0 ~ NA,
+           hisporig == 1 ~ 'Non-Hispanic',
+           hisporig == 2 ~ 'Hispanic'
+         ),
+         monrace = case_when(
+           monrace == 1 ~ 'White/Caucasian',
+           monrace == 2 ~ 'Black/African American',
+           monrace == 3 ~ 'American Indian/Alaskan Native',
+           monrace == 4 ~ 'Asian or Pacific Islander',
+           monrace == 5 ~ 'Multi-racial',
+           monrace == 7 ~ 'Other',
+           # monrace == 8 ~ NA,
+           monrace == 9 ~ 'Non-US American Indians'
+           # monrace == 10 ~ NA 
+         ),
+         monsex = if_else(monsex == 0, 'Male', 'Female'),
+         newcit = if_else(newcit == 0, 'U.S.', 'Non-U.S.'),
+         neweduc = case_when(
+           neweduc == 1 ~ 'Less Than H.S. Graduate',
+           neweduc == 3 ~ 'H.S. Graduate',
+           neweduc == 5 ~ 'Some College',
+           neweduc == 6 ~ 'College Graduate'
+         ),
+         newrace = case_when(
+           newrace == 1 ~ 'White',
+           newrace == 2 ~ 'Black',
+           newrace == 3 ~ 'Hispanic',
+           newrace == 6 ~ 'Other'
+         ),
+         # Refactor months to be in the correct order
+         dobmon = factor(dobmon, ordered = TRUE, levels = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+        ) %>% 
+  # Replace the current variables with their actual definitions
+  left_join(circdist, by = c('circdist' = 'District_Number')) %>% # Joins in 95% of records
+  left_join(citwhere, by = 'citwhere') %>% # Joins in 95% of records
+  select(-c(circdist, citwhere, district, moncirc))
+```
+
+```{r demographics_explore}
+DataExplorer::plot_bar(demographic_variables %>% select(-newrace, -dobmon), 
+                       ggtheme = theme_classic(),
+                       title = 'Distribution of Categorical Demographic Variables',
+                       theme_config = theme(plot.title = element_text(hjust = 0, 
+                                                                          color = "slateblue4", 
+                                                                          size = 24),
+                                                plot.subtitle = element_text(hjust = 0, color = "slateblue2", size = 10),
+                                                plot.caption = element_text(color = "dark gray", size = 10, face = "italic"),
+                                                axis.title.x = element_text(size = 14),
+                                                axis.title.y = element_text(size = 14)),
+                       maxcat = 10,
+                       ncol = 2)
+
+DataExplorer::plot_histogram(demographic_variables,
+                             ggtheme = theme_classic(),
+                             title = 'Distribution of Continuous Demographic Variables',
+                             geom_histogram_args = list(fill = 'slateblue'),
+                             theme_config = theme(plot.title = element_text(hjust = 0, 
+                                                                                color = "slateblue4", 
+                                                                                size = 24),
+                                                      plot.subtitle = element_text(hjust = 0, color = "slateblue2", size = 10),
+                                                      plot.caption = element_text(color = "dark gray", size = 10, face = "italic"),
+                                                      axis.title.x = element_text(size = 14),
+                                                      axis.title.y = element_text(size = 14)),
+                             ncol = 3)
+
+demographic_variables %>% 
+  group_by(dobyr, dobmon) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  # Idk why there are nulls in this
+  filter(!(is.na(dobyr))) %>% 
+  ggplot(aes(x = dobyr, y = dobmon, fill = n)) + 
+  geom_tile(colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = 'white', high = 'slateblue4') +
+  guides(fill = guide_legend(title = "# of Defendants")) +
+  theme_classic() + 
+  labs(title = "When are Defendants Born?",
+       x = "Year", 
+       y = "Month") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+Some observations here:  
+- Most individuals who have been sentenced are of hispanic origin (`r round(100*sum(demographic_variables$hisporig == 'Hispanic', na.rm = T)/nrow(demographic_variables), 1)`%) AND race (`r round(100*sum(demographic_variables$newrace == 'Hispanic', na.rm = T)/nrow(demographic_variables), 1)`%)  
+- Males make up `r round(100*sum(demographic_variables$monsex == 'Male', na.rm = T)/nrow(demographic_variables), 1)`% of the individuals sentenced, an overwhelming proportion  
+- Individuals who are sentenced are more likely to have poor education  
+- Defendants tend to be younger, on average. The distribution by age is heavily right-skewed  
+- Most defendants (`r round(100*sum(demographic_variables$numdepen != 0, na.rm = T)/nrow(demographic_variables), 1)`%) have dependents, with the distribution being obviously heavily right-skewed  

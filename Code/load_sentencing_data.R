@@ -2,16 +2,20 @@
 ### Set Up -----------------------------------------------------------------
 ###########################################################################
 # Bring in packages
-suppressMessages(library("tidyverse")) # Used for data wrangling
-suppressMessages(library("tidyr")) # Used for data cleaning
-suppressMessages(library("ggplot2")) # Used for visualizations
-suppressMessages(library("readxl")) # Used for loading excel files
-suppressMessages(library("readr")) # Used for working with files
-suppressMessages(library("pander")) # Used for pretty tables
-suppressMessages(library("lubridate")) # Used for fixing dates
-suppressMessages(library("praise")) # Used for positive reinforcement
-suppressMessages(library("stringr")) # Used for positive reinforcement
-suppressMessages(library('vroom')) # for fast reading of large dataframes
+
+pacman::p_load(tidyverse, # Used for data wrangling
+               tidyr, # Used for data cleaning
+               ggplot2, # Used for visualizations
+               readxl, # Used for loading excel files
+               readr, # Used for working with files
+               pander, # Used for pretty tables
+               lubridate, # Used for fixing dates
+               praise, # Used for positive reinforcement
+               stringr, # Used for positive reinforcement
+               dataExplorer, # Used for quick EDA
+               vroom # for fast reading of large dataframes
+               )
+
 source('Code/utils.R')
 
 start_time <- Sys.time()

@@ -59,27 +59,16 @@ Let's start by taking a look at the data.
 ########################################################################
 sentencing_data <- readRDS(here::here('Data/sentencing_df_vroom.RDS'))
 
-# Let's view the data output
-# In any kable outputs, display NAs as blanks
-opts <- options(knitr.kable.NA = "")
-
-sentencing_data %>% 
-  head(25) %>%
-  # Fix up the headers by replacing the underscores with spaces
-  rename_all(funs(str_replace_all(., "_", " "))) %>% 
-  # Make everything proper capitalization
-  # rename_all(funs(str_to_title)) %>% 
-  kable() %>%
-  kable_styling(bootstrap_options = c("striped", "hover"),
-                full_width = F,
-                font_size = 10) %>%
-  # Make the header row bold and black so it's easier to read
-  row_spec(0, bold = T, color = "black") %>% 
-  scroll_box(height = "400px", width = "100%")
 ```
 
 
 # Exploratory Data Analysis
 ```{r eda}
-DataExplorer::create_report(sentencing_data)
+DataExplorer::create_report(sentencing_data,
+                            output_file = 'Data Profile.html',
+                            report_title = 'Federal Sentencing Data Profile',
+                            config = configure_report(
+                              global_ggtheme = quote(theme_classic()),
+                              add_plot_qq = F
+                            ))
 ```

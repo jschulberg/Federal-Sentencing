@@ -35,6 +35,9 @@ start_time <- Sys.time()
 # Initialize an empty tibble to hold all of our data
 sentencing_data <- dplyr::tibble()
 
+# TODO: Consider converting this to a function so we can create two sets of columns:
+#       1. where the columns are ALL CAPS
+#       2. where the columns are all lowercase
 for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
   # Where we at
   print(paste0("Reading in ", csv, "..."))
@@ -128,9 +131,10 @@ for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
       SENTDATE = col_date(), # Date of sentencing
       SENTIMP = col_factor(), # Type of sentence given
       SENTMON = col_character(), # Month of sentencing
-      SENTYR = col_integer() # Year of sentencing
+      SENTYR = col_integer(), # Year of sentencing,
+      USSCIDN = col_character() # Unique ID
     ),
-    # n_max = 100, # Uncomment this line to make the code run much much faster, but only if you want to see a sample of the data
+    # n_max = 1000, # Uncomment this line to make the code run much much faster, but only if you want to see a sample of the data
     progress = show_progress()
     ) %>% 
     janitor::remove_empty(which = c("rows", "cols")) %>% 
@@ -179,13 +183,12 @@ filter_null_columns <- function(df, perc_null = .75) {
                sum(num_nulls_pivoted$percent_null < perc_null), 
                " columns | Removing ", 
                sum(num_nulls_pivoted$percent_null > perc_null),
-               " mostly null columns.")
+               " columns that are ",
+               perc_null,
+               "% null.")
         )
         
   # Now filter out any variables that are more than 75% null
-  print(paste0("Removing columns that are more than ", 
-               perc_null, 
-               "% null..."))
   num_nulls_reduced <- num_nulls_pivoted %>% 
     filter(percent_null < perc_null)
   
@@ -212,7 +215,11 @@ for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
   # Read it in as a temporary tibble
   temp_df <- read_csv(unzip('Data/Processed/Archive.zip', csv),
                       col_names = TRUE,
-                      n_max = 100, # Uncomment this line to make the code run much much faster, but only if you want to see a sample of the data
+                      # col_types = cols_only(
+                      #   POOFFICE = col_character(),
+                      #   pooffice = col_character()
+                      # ),
+                      # n_max = 100, # Uncomment this line to make the code run much much faster, but only if you want to see a sample of the data
                       progress = show_progress())
   
   # Remove columns that are mostly null in this
@@ -227,3 +234,6 @@ for (csv in unzip('Data/Processed/Archive.zip', list = TRUE)$Name) {
 
 end_time <- Sys.time()
 end_time - start_time
+
+# Remove any columns that were only prevalent in just 20% (2) datasets
+sentencing_filtered <- filter_null_columns(sentencing_data, perc_null = .8)
