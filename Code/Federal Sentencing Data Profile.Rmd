@@ -1,0 +1,85 @@
+---
+title: "Federal Sentencing Data Profile"
+author: "Justin S."
+date: "3/12/2022"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+In this analysis, I will look at Federal Sentencing data from the [United States Sentencing Commission (USSC)](https://www.ussc.gov/). I will use a variety of exploratory and modeling techniques to do answer the following questions:
+
+
+# Let's Talk About the Data
+The data provided by USSC has proved challenging in a rather unique way. The datasets are saved as zip files, one for each fiscal year, containing .SAS and .SPSS files. Unfortunately, those files are fixed delimited, but not totally consistently, making it hard to actually put the data into a standard, tabular format, despite the fact that that was what was intended by the USSC research team compiling the data. 
+
+With that, huge kudos is in order to Kevin Wilson for writing [significant code](https://github.com/khwilson/SentencingCommissionDatasets) to convert each zip file into a CSV. Even after the couple hours spent running his code, I was able to produce one CSV for each fiscal years' data. Unfortunately, each of the 11 CSVs was about 1GB...which is what you get when you have 100,000 rows and 400 variables in each file, so I had to compress the files to better work with them. Even then, having 1mil+ rows and 400 columns wasn't too feasible, so I spent significant time going through [USSC's Codebook](https://www.ussc.gov/sites/default/files/pdf/research-and-publications/datafiles/USSC_Public_Release_Codebook_FY99_FY20.pdf) to better understand which variables they provide. With that, my analysis will be tailored to answer the following questions:
+
+```{r fig.align='center', fig.height=6, fig.width=6, message=FALSE, warning=FALSE, include=FALSE}
+# Set our plot specifications for the rest of the document.
+knitr::opts_chunk$set(fig.width = 9,
+                      fig.height = 6,
+                      fig.align = "center",
+                      # Set our code specifications for the rest of the document
+                      echo = F,
+                      warning = F,
+                      message = F)
+```
+
+Let's take a look at the data. Here's a small sample of it:
+
+```{r set-up_and_clean_data, include=FALSE}
+###########################################################################
+## Set Up -----------------------------------------------------------------
+###########################################################################
+# Bring in packages
+suppressMessages(library("pacman"))
+pacman::p_load("tidyverse", # Used for data wrangling,
+               "tidyr", # Used for data cleaning,
+               DataExplorer, # Exploratory data analysis
+               "kableExtra", # Used for RMarkdown formatting
+               "pander", # Used for pretty tables,
+               "here", # Used for navigating project structure
+               )
+
+# Get rid of scientific notation
+options(scipen = 999)
+
+
+
+```
+
+
+Let's start by taking a look at the data.
+
+```{r display_data}
+########################################################################
+### View Data --------------------------------------------------------
+########################################################################
+sentencing_data <- readRDS(here::here('Data/sentencing_df_vroom.RDS'))
+
+# Let's view the data output
+# In any kable outputs, display NAs as blanks
+opts <- options(knitr.kable.NA = "")
+
+sentencing_data %>% 
+  head(25) %>%
+  # Fix up the headers by replacing the underscores with spaces
+  rename_all(funs(str_replace_all(., "_", " "))) %>% 
+  # Make everything proper capitalization
+  # rename_all(funs(str_to_title)) %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"),
+                full_width = F,
+                font_size = 10) %>%
+  # Make the header row bold and black so it's easier to read
+  row_spec(0, bold = T, color = "black") %>% 
+  scroll_box(height = "400px", width = "100%")
+```
+
+
+# Exploratory Data Analysis
+```{r eda}
+DataExplorer::create_report(sentencing_data)
+```
