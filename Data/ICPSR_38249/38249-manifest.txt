@@ -1,0 +1,57 @@
+File Manifest for ICPSR 38249
+
+United States. Bureau of Justice Statistics. National Prisoner Statistics,
+[United States], 1978-2020. ICPSR38249-v1. Ann Arbor, MI: Inter-university
+Consortium for Political and Social Research [distributor], 2021-12-16.
+http://doi.org/10.3886/ICPSR38249.v1
+
+
+Study-level Documentation
+
+    Filename                            Record  Record    Var.    Date        MD5
+                                        Length  Count     Count   Updated     Checksum
+
+    38249-descriptioncitation.pdf       -       -         -       2021-12-16  -
+
+    38249-related_literature.txt        -       -         -       daily       -
+
+    38249-manifest.txt                  -       -         -       daily       -
+
+
+DS0001 National Prisoner Statistics, [United States], 1978-2020
+
+    Filename                            Record  Record    Var.    Date        MD5
+                                        Length  Count     Count   Updated     Checksum
+
+    38249-0001-Codebook.pdf             -       -         -       2021-12-16  0bf7d5483f7eb34b10526eb2ba9fe3a8
+
+    38249-0001-Data.dta                 -       2,322     228     2021-12-16  4d326d600a4c312d77b4ff5ee8f13a92
+
+    38249-0001-Data.rda                 -       2,322     228     2021-12-16  587d29465a143114b34a7baeb6d101c8
+
+    38249-0001-Data.sav                 -       2,322     228     2021-12-16  cb222f4b6efee156a86076692dcd00a4
+
+    38249-0001-Data.stc                 -       2,322     228     2021-12-16  b92b62d59405f77ed082f2f932214c30
+
+    38249-0001-Data.tsv                 -       2,322     228     2021-12-16  9b3d2f3ef91408a98fdd262879136ce6
+
+    38249-0001-Data.txt                 938     2,322     228     2021-12-16  11658c058d366b2f9b924b4abe3b7bb2
+
+    38249-0001-Documentation-NPS_Crosswalk_1978_to_2020.xlsx -       -         -       2021-12-16  a80e35d41eec5d74f7b6ce90300be543
+
+    38249-0001-Documentation-notes.zip  -       -         -       2021-12-16  ea5ea99f5733cf760bde62ca15ae88cb
+
+    38249-0001-Questionnaire.pdf        -       -         -       2021-12-16  7de6b74f9ad0b6ca8f9a9ce4020fc4cc
+
+    38249-0001-Setup.dct                -       -         -       2021-12-16  505d686aed4100160fa5af86dd202285
+
+    38249-0001-Setup.do                 -       -         -       2021-12-16  d6a7acae5c6f50fad2eec478213be85c
+
+    38249-0001-Setup.sas                -       -         -       2021-12-16  bf5c05ed7cc4a9640feed31316728a27
+
+    38249-0001-Setup.sps                -       -         -       2021-12-16  081b2e6556a55cccd690c1b08cfabafc
+
+    38249-0001-Supplemental_syntax.do   -       -         -       2021-12-16  ea2ed57a0a953e6311cd382c0564b49a
+
+    38249-0001-Supplemental_syntax.sas  -       -         -       2021-12-16  5707b1dcf448194dcac291280afec092
+
